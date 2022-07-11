@@ -1,0 +1,113 @@
+
+
+import pandas as pd
+import numpy as np
+import math
+import random
+import tensorflow as tf
+import glob
+import cv2
+tr_path = glob.glob('E:/flower/image/*.jpg')#训练集所有jpg图片路径
+y_label = pd.read_csv('E:/flower/imagelabels.csv')#提取标签
+y_label['label'][1]
+def rotate(img,angle=45,scale=0.7):
+    rotation = cv2.getRotationMatrix2D(center = (hight*0.5,width*0.5),angle = angle,scale = scale)#仿射变换矩阵:中心，角度，图像比例
+    img_rotation = cv2.warpAffine(img,rotation,dsize = (hight,width))
+    return img_rotation
+train_x = []
+train_y = []
+k = 0
+for i in tr_path:
+    img = cv2.imread(i)
+    img = cv2.resize(img,(227,227))#统一图片规模
+    hight,width,_ = img.shape
+    #水平垂直翻转
+    img_flip = cv2.flip(img,-1)
+    #旋转
+    img_rotation45 = rotate(img,45,0.7)    
+    img_rotation90 = rotate(img,90,1.2)
+    #获取标签
+    label = y_label['label'][k]
+    k = k+1
+    train_x.extend([img[:,:,0:1],img_flip[:,:,0:1],img_rotation45[:,:,0:1],img_rotation90[:,:,0:1]])
+    train_y.extend([label]*4)
+x = np.array(train_x)
+x.shape
+x
+
+y = np.array(train_y)
+y.shape
+max(y)
+#划分测试集和训练集
+from sklearn.model_selection import train_test_split
+x_tr,x_te,y_tr,y_te = train_test_split(x,y,test_size = 0.2,random_state = 12)
+x_tr
+x.shape
+#LRN层的搭建
+class LRN(tf.keras.layers.Layer):
+    def __init__(self):
+        super(LRN,self).__init__()
+        self.depth_radius = 5
+        self.bias = 2
+        self.alpha = 1e-4
+        self.beta = 0.75
+    def call(self,x):
+        return tf.nn.lrn(x,depth_radius=self.depth_radius,
+                         bias=self.bias,alpha=self.alpha,
+                         beta=self.beta)
+tf.keras.backend.clear_session()#清空计算图
+model = tf.keras.models.Sequential()
+#卷积层1
+from tensorflow.keras import layers
+model.add(layers.Conv2D(96,(11,11),strides=4,activation='relu',padding = 'valid',input_shape =(227,227,1)))
+model.add(layers.MaxPool2D((3,3),strides = 2))
+model.add(LRN())
+#卷积层2
+model.add(layers.Conv2D(256,(5,5),strides=1,activation='relu',padding = 'same'))
+model.add(layers.MaxPool2D((3,3),strides = 2))
+model.add(LRN())
+#卷积层3
+model.add(layers.Conv2D(384,(3,3),strides=1,activation='relu',padding = 'same'))
+#卷积层4
+model.add(layers.Conv2D(384,(3,3),strides=1,activation='relu',padding = 'same'))
+#卷积层5
+model.add(layers.Conv2D(256,(3,3),strides=1,activation='relu',padding = 'same'))
+model.add(layers.MaxPool2D((3,3),strides = 2))
+
+#全连接层
+model.add(layers.Flatten())
+model.add(layers.Dense(4096,activation='relu'))
+model.add(layers.Dropout(0.5))
+model.add(layers.Dense(2048,activation='relu'))
+model.add(layers.Dropout(0.5))
+model.add(layers.Dense(103,activation='softmax'))
+
+model.summary()
+
+model.compile(optimizer='sgd', loss='sparse_categorical_crossentropy', metrics=['accuracy'])
+model.fit(x_tr,y_tr,epochs=20,batch_size= 20)
+model.summary()
+
+
+
+data = []
+for i in range(len(pre)):
+    for j in range(len(pre[i])):
+        if pre[i][j] == max(pre[i]):
+            data.append([j])
+data
+
+
+
+
+for i in range(len(data)):
+    data[i].append(y_te[i])
+data
+k = 0
+for i in range(len(data)):
+    if data[i][1] == data[i][0]:
+        k = k+1
+data
+k/len(data)
+
+
